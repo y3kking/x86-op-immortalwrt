@@ -41,7 +41,7 @@ function check_system(){
 
 	[ "$(uname -m)" != "x86_64" ] && { __error_msg "Unsupported architecture, use AMD64 instead." && exit 1; }
 
-	[ "$(whoami)" != "root" ] && { __error_msg "You must run me as root." && exit 1; }
+#	[ "$(whoami)" != "root" ] && { __error_msg "You must run me as root." && exit 1; }
 }
 
 function check_network(){
