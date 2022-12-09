@@ -43,6 +43,8 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
+# sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
+
     - name: Clone source code
       working-directory: /workdir
       run: |
