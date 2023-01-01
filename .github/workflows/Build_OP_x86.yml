@@ -8,8 +8,10 @@
 name: Build_x86
 
 on: 
-  release:
-    types: [published]
+#  repository_dispatch:
+  workflow_dispatch:
+#  release:
+#    types: [published]
 
   #push:
   #  branches: 
