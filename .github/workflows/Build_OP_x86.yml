@@ -114,4 +114,4 @@ jobs:
       uses: actions/upload-artifact@master
       with:
         name: OpenWrt${{ env.FILE_DATE }}
-        path: openwrt/bin/targets
+        path: openwrt/bin/targets/x86/64/immortalwrt-x86-64-generic-squashfs-combined.img
