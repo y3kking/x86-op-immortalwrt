@@ -111,7 +111,7 @@ jobs:
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
     - name : Upload artifact
-      uses: actions/upload-artifact@master
+      uses: actions/upload-artifact@main
       with:
         name: OpenWrt${{ env.FILE_DATE }}
         path: openwrt/bin/targets/x86/64/immortalwrt-x86-64-generic-squashfs-combined.img
