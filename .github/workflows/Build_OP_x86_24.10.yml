@@ -77,7 +77,7 @@ jobs:
         ./scripts/feeds install -a
         ./scripts/feeds install -a
         curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
-        git clone --depth=1 https://github.com/fw876/helloworld.git package/helloworld
+    #   git clone --depth=1 https://github.com/fw876/helloworld.git package/helloworld
     #- name: Import external feeds - passwall
     #  working-directory: ./openwrt
     #  run: |
