@@ -94,8 +94,8 @@ jobs:
         CONFIG_FILE: '.config24.10'
       run: |
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x ./customize.sh && ./customize.sh
         cd openwrt && make defconfig
+    #   chmod +x ./customize.sh && ./customize.sh
         
     - name: Download package
       working-directory: ./openwrt
