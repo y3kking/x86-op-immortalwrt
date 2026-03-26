@@ -7,7 +7,7 @@
 
 #new passwall update for https://github.com/Openwrt-Passwall/openwrt-passwall
 
-name: Build_x86_24.10
+name: Build_x86_24.10.1
 
 on: 
 #  repository_dispatch:
