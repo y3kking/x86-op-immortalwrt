@@ -110,6 +110,18 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
+    - name: Hotfix GRUB2 free() type mismatch
+      working-directory: ./openwrt
+      run: |
+        # 查找并修复 setup_bios.c 中的 free 调用
+        SETUP_C=$(find . -path "*/grub2-*/util/setup_bios.c" | head -1)
+        if [ -n "$SETUP_C" ]; then
+          echo "Patching $SETUP_C"
+          sed -i 's/free(\([a-zA-Z0-9_]*\));/free((void *)\1);/g' "$SETUP_C"
+        else
+          echo "WARNING: setup_bios.c not found, GRUB2 patch may not be needed"
+        fi
+
     - name: Build firmware
       working-directory: ./openwrt
       run: |
