@@ -75,13 +75,10 @@ jobs:
     - name: Update & Install feeds
       working-directory: ./openwrt
       run: |
+        printf "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main\nsrc-git passwall_luci https://github.com/Openwrt-Passwall/openwrt-passwall.git;main\n" | cat - feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
         ./scripts/feeds install -a
-        rm -rf feeds/packages/net/{xray-core,v2ray-geodata,sing-box,chinadns-ng,dns2socks,hysteria,ipt2socks,microsocks,naiveproxy,shadowsocks-libev,shadowsocks-rust,shadowsocksr-libev,simple-obfs,tcping,trojan-plus,tuic-client,v2ray-plugin,xray-plugin,geoview,shadow-tls}
-        git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/passwall-packages
-        rm -rf feeds/luci/applications/luci-app-passwall
-        git clone https://github.com/Openwrt-Passwall/openwrt-passwall package/passwall-luci
         curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
         rm -rf package/network/utils/fullconenat-nft
     #删除package/network/utils/fullconenat-nft，immortalwrt自带一个nft-fullcone与turboacc冲突
