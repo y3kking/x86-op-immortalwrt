@@ -78,7 +78,7 @@ jobs:
         printf "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main\nsrc-git passwall_luci https://github.com/Openwrt-Passwall/openwrt-passwall.git;main\n" | cat - feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        ./scripts/feeds install -a
+    #   ./scripts/feeds install -a
     #   curl -sSL https://raw.githubusercontent.com/chenmozhijin/turboacc/luci/add_turboacc.sh -o add_turboacc.sh && bash add_turboacc.sh
     #   rm -rf package/network/utils/fullconenat-nft
     #删除package/network/utils/fullconenat-nft，immortalwrt自带一个nft-fullcone与turboacc冲突
