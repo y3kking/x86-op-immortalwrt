@@ -1,4 +1,4 @@
-name: Build_x86_25.12.1
+name: Build_x86_25.12.Open-Box
 
 on:
   workflow_dispatch:
