@@ -51,7 +51,6 @@ jobs:
       - name: Update & Install feeds
         working-directory: ./openwrt
         run: |
-          printf "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main\nsrc-git passwall_luci https://github.com/Openwrt-Passwall/openwrt-passwall.git;main\n" | cat - feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
@@ -95,20 +94,20 @@ jobs:
           mkdir -p $ROOTFS_DIR/etc/init.d
 
           cat << 'EOF' > $ROOTFS_DIR/etc/init.d/open-box
-#!/bin/sh /etc/rc.common
-START=99
-STOP=10
+          #!/bin/sh /etc/rc.common
+          START=99
+          STOP=10
 
-start() {
-    echo "Starting Open-Box..."
-    /opt/open-box/open-box start
-}
+          start() {
+              echo "Starting Open-Box..."
+              /opt/open-box/open-box start
+          }
 
-stop() {
-    echo "Stopping Open-Box..."
-    /opt/open-box/open-box stop
-}
-EOF
+          stop() {
+              echo "Stopping Open-Box..."
+              /opt/open-box/open-box stop
+          }
+          EOF
 
           chmod +x $ROOTFS_DIR/etc/init.d/open-box
 
