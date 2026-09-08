@@ -51,6 +51,7 @@ jobs:
     - name: Update & Install feeds
       working-directory: ./openwrt
       run: |
+        printf "src-git passwall_packages https://github.com/Openwrt-Passwall/openwrt-passwall-packages.git;main\nsrc-git passwall_luci https://github.com/Openwrt-Passwall/openwrt-passwall.git;main\n" | cat - feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
