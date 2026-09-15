@@ -75,6 +75,12 @@ jobs:
           make -j$(nproc) V=s
           echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
+      - name: Debug build_dir
+        run: |
+          echo ">>> Listing build_dir"
+          ls -R openwrt/build_dir/
+
+
       - name: Integrate Open-Box into firmware
         run: |
           echo ">>> Auto-detecting rootfs directory"
