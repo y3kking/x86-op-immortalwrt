@@ -79,40 +79,53 @@ jobs:
         run: |
           echo ">>> Detecting correct rootfs directory"
 
-          if [ -d "openwrt/build_dir/target-x86_64_musl/rootfs" ]; then
-              ROOTFS_DIR="openwrt/build_dir/target-x86_64_musl/rootfs"
-          elif [ -d "openwrt/build_dir/target-x86_64_musl/root-x86_64" ]; then
-              ROOTFS_DIR="openwrt/build_dir/target-x86_64_musl/root-x86_64"
-          elif [ -d "openwrt/build_dir/target-x86_64_musl/root-x86" ]; then
-              ROOTFS_DIR="openwrt/build_dir/target-x86_64_musl/root-x86"
+          # ImmortalWrt 25.12 x86_64 uses glibc, not musl
+          if [ -d "openwrt/build_dir/target-x86_64_glibc/root-x86_64_glibc" ]; then
+              ROOTFS_DIR="openwrt/build_dir/target-x86_64_glibc/root-x86_64_glibc"
+          elif [ -d "openwrt/build_dir/target-x86_64_glibc/rootfs" ]; then
+              ROOTFS_DIR="openwrt/build_dir/target-x86_64_glibc/rootfs"
+          elif [ -d "openwrt/build_dir/target-x86_64_glibc/root" ]; then
+              ROOTFS_DIR="openwrt/build_dir/target-x86_64_glibc/root"
           else
               echo "ERROR: rootfs directory not found!"
-              ls openwrt/build_dir/target-x86_64_musl/
+              echo "Available directories:"
+              ls openwrt/build_dir/target-x86_64_glibc/
               exit 1
           fi
 
           echo "ROOTFS_DIR = $ROOTFS_DIR"
 
+          echo ">>> Creating Open-Box directory"
           mkdir -p $ROOTFS_DIR/opt/open-box
+
+          echo ">>> Downloading Open-Box release (x64)"
           wget -O /tmp/open-box.tar.gz https://github.com/liandu2024/Open-Box/releases/latest/download/open-box-linux-x64.tar.gz
+
+          echo ">>> Extracting Open-Box"
           tar -xzvf /tmp/open-box.tar.gz -C $ROOTFS_DIR/opt/open-box/
 
+          echo ">>> Adding init.d service"
           mkdir -p $ROOTFS_DIR/etc/init.d
+
           cat << 'EOF' > $ROOTFS_DIR/etc/init.d/open-box
           #!/bin/sh /etc/rc.common
           START=99
           STOP=10
 
           start() {
+              echo "Starting Open-Box..."
               /opt/open-box/open-box start
           }
 
           stop() {
+              echo "Stopping Open-Box..."
               /opt/open-box/open-box stop
           }
           EOF
 
           chmod +x $ROOTFS_DIR/etc/init.d/open-box
+
+          echo ">>> Open-Box integration completed"
 
       - name: Upload artifact
         uses: actions/upload-artifact@main
