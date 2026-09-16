@@ -68,22 +68,15 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
-      - name: Debug build_dir
+      - name: Prepare Open-Box files
         run: |
-          echo ">>> Listing build_dir"
-          ls -R openwrt/build_dir/
+          mkdir -p openwrt/files/opt/open-box
+          mkdir -p openwrt/files/etc/init.d
 
-      - name: Integrate Open-Box into rootfs
-        run: |
-          echo ">>> Using rootfs: openwrt/build_dir/target-x86_64_musl/root-x86"
-          ROOTFS_DIR="openwrt/build_dir/target-x86_64_musl/root-x86"
-
-          mkdir -p $ROOTFS_DIR/opt/open-box
           wget -O /tmp/open-box.tar.gz https://github.com/liandu2024/Open-Box/releases/latest/download/open-box-linux-x64.tar.gz
-          tar -xzvf /tmp/open-box.tar.gz -C $ROOTFS_DIR/opt/open-box/
+          tar -xzvf /tmp/open-box.tar.gz -C openwrt/files/opt/open-box/
 
-          mkdir -p $ROOTFS_DIR/etc/init.d
-          cat << 'EOF' > $ROOTFS_DIR/etc/init.d/open-box
+          cat << 'EOF' > openwrt/files/etc/init.d/open-box
           #!/bin/sh /etc/rc.common
           START=99
           STOP=10
@@ -97,7 +90,7 @@ jobs:
           }
           EOF
 
-          chmod +x $ROOTFS_DIR/etc/init.d/open-box
+          chmod +x openwrt/files/etc/init.d/open-box
 
       - name: Build firmware
         working-directory: ./openwrt
