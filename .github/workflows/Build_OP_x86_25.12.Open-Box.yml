@@ -82,37 +82,21 @@ jobs:
 
       - name: Integrate Open-Box into firmware
         run: |
-          echo ">>> Auto-detecting REAL rootfs directory"
+          echo ">>> Detecting REAL rootfs directory"
 
-          ROOTFS_DIR=""
+          BASE_DIR="openwrt/build_dir/target-x86_64_musl"
 
-          # Scan target-x86_64_musl for REAL rootfs
-          for d in openwrt/build_dir/target-x86_64_musl/*; do
-              echo "Checking $d"
-
-              # Final rootfs (highest priority)
-              if [ -d "$d/root-x86_64" ]; then
-                  ROOTFS_DIR="$d/root-x86_64"
-                  break
-              fi
-
-              # Alternative final rootfs
-              if [ -d "$d/rootfs" ]; then
-                  ROOTFS_DIR="$d/rootfs"
-                  break
-              fi
-
-              # Fallback (rare)
-              if [ -d "$d/root" ]; then
-                  ROOTFS_DIR="$d/root"
-                  break
-              fi
-          done
-
-          if [ -z "$ROOTFS_DIR" ]; then
+          # Final rootfs (highest priority)
+          if [ -d "$BASE_DIR/root-x86_64" ]; then
+              ROOTFS_DIR="$BASE_DIR/root-x86_64"
+          elif [ -d "$BASE_DIR/rootfs" ]; then
+              ROOTFS_DIR="$BASE_DIR/rootfs"
+          elif [ -d "$BASE_DIR/root" ]; then
+              ROOTFS_DIR="$BASE_DIR/root"
+          else
               echo "ERROR: REAL rootfs directory not found!"
-              echo "Available directories:"
-              ls -R openwrt/build_dir/target-x86_64_musl/
+              echo "Available entries in $BASE_DIR:"
+              ls -l $BASE_DIR
               exit 1
           fi
 
