@@ -80,42 +80,43 @@ jobs:
           echo ">>> Listing build_dir"
           ls -R openwrt/build_dir/
 
-
       - name: Integrate Open-Box into firmware
         run: |
-          echo ">>> Auto-detecting rootfs directory"
+          echo ">>> Auto-detecting REAL rootfs directory"
 
           ROOTFS_DIR=""
 
-          # Scan all possible rootfs directories
-          for d in openwrt/build_dir/*/; do
+          # Scan target-x86_64_musl for REAL rootfs
+          for d in openwrt/build_dir/target-x86_64_musl/*; do
               echo "Checking $d"
-              if [ -d "${d}root-x86_64" ]; then
-                  ROOTFS_DIR="${d}root-x86_64"
+
+              # Final rootfs (highest priority)
+              if [ -d "$d/root-x86_64" ]; then
+                  ROOTFS_DIR="$d/root-x86_64"
                   break
               fi
-              if [ -d "${d}root-x86" ]; then
-                  ROOTFS_DIR="${d}root-x86"
+
+              # Alternative final rootfs
+              if [ -d "$d/rootfs" ]; then
+                  ROOTFS_DIR="$d/rootfs"
                   break
               fi
-              if [ -d "${d}rootfs" ]; then
-                  ROOTFS_DIR="${d}rootfs"
-                  break
-              fi
-              if [ -d "${d}root" ]; then
-                  ROOTFS_DIR="${d}root"
+
+              # Fallback (rare)
+              if [ -d "$d/root" ]; then
+                  ROOTFS_DIR="$d/root"
                   break
               fi
           done
 
           if [ -z "$ROOTFS_DIR" ]; then
-              echo "ERROR: rootfs directory not found!"
+              echo "ERROR: REAL rootfs directory not found!"
               echo "Available directories:"
-              ls -R openwrt/build_dir/
+              ls -R openwrt/build_dir/target-x86_64_musl/
               exit 1
           fi
 
-          echo ">>> ROOTFS_DIR detected: $ROOTFS_DIR"
+          echo ">>> REAL ROOTFS_DIR detected: $ROOTFS_DIR"
 
           mkdir -p $ROOTFS_DIR/opt/open-box
           wget -O /tmp/open-box.tar.gz https://github.com/liandu2024/Open-Box/releases/latest/download/open-box-linux-x64.tar.gz
