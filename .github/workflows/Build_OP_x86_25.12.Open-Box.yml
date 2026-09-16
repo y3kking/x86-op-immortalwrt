@@ -56,7 +56,7 @@ jobs:
 
       - name: Configuration Customization - Build_x86
         env:
-          CONFIG_FILE: '.config25.12.OB'
+          CONFIG_FILE: '.config25.12.base'
         run: |
           [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
           cd openwrt && make defconfig
