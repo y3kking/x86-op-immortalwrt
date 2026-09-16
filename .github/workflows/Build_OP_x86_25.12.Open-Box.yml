@@ -68,39 +68,15 @@ jobs:
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
 
-      - name: Build firmware
-        working-directory: ./openwrt
-        run: |
-          echo -e "$(nproc) thread build."
-          make -j$(nproc) V=s
-          echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
-
       - name: Debug build_dir
         run: |
           echo ">>> Listing build_dir"
           ls -R openwrt/build_dir/
 
-      - name: Integrate Open-Box into firmware
+      - name: Integrate Open-Box into rootfs
         run: |
-          echo ">>> Detecting REAL rootfs directory"
-
-          BASE_DIR="openwrt/build_dir/target-x86_64_musl"
-
-          # Final rootfs (highest priority)
-          if [ -d "$BASE_DIR/root-x86_64" ]; then
-              ROOTFS_DIR="$BASE_DIR/root-x86_64"
-          elif [ -d "$BASE_DIR/rootfs" ]; then
-              ROOTFS_DIR="$BASE_DIR/rootfs"
-          elif [ -d "$BASE_DIR/root" ]; then
-              ROOTFS_DIR="$BASE_DIR/root"
-          else
-              echo "ERROR: REAL rootfs directory not found!"
-              echo "Available entries in $BASE_DIR:"
-              ls -l $BASE_DIR
-              exit 1
-          fi
-
-          echo ">>> REAL ROOTFS_DIR detected: $ROOTFS_DIR"
+          echo ">>> Using rootfs: openwrt/build_dir/target-x86_64_musl/root-x86"
+          ROOTFS_DIR="openwrt/build_dir/target-x86_64_musl/root-x86"
 
           mkdir -p $ROOTFS_DIR/opt/open-box
           wget -O /tmp/open-box.tar.gz https://github.com/liandu2024/Open-Box/releases/latest/download/open-box-linux-x64.tar.gz
@@ -123,7 +99,12 @@ jobs:
 
           chmod +x $ROOTFS_DIR/etc/init.d/open-box
 
-          echo ">>> Open-Box integration completed"
+      - name: Build firmware
+        working-directory: ./openwrt
+        run: |
+          echo -e "$(nproc) thread build."
+          make -j$(nproc) V=s
+          echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@main
