@@ -1,0 +1,4 @@
+# Custom feeds for x86-op-immortalwrt
+# This file is included by the build workflow
+
+src-git custom file://$(TOPDIR)/feeds/custom
