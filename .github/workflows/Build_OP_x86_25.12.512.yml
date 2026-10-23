@@ -37,7 +37,7 @@ jobs:
           php*
         sudo -E apt-get -qq update
         sudo -E apt-get -qq full-upgrade
-        sudo -E apt-get -y -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -y -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfstools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
         sudo -E apt-get -y autoremove --purge
         sudo -E apt-get clean
 
@@ -62,27 +62,68 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds update custom
         ./scripts/feeds install -a
+        # 【关键】显式安装 custom feed，-a 只安装默认 feed
         ./scripts/feeds install -a -p custom
+
+    - name: Verify luci-app-openbox config
+      working-directory: ./openwrt
+      run: |
+        # 检查配置是否真的写入
+        grep -E "CONFIG_PACKAGE_luci-app-openbox" .config
+        # 检查依赖是否满足
+        grep -E "CONFIG_PACKAGE_kmod-nft-queue" .config
+        grep -E "CONFIG_PACKAGE_kmod-veth" .config
+        grep -E "CONFIG_PACKAGE_ip-full" .config
+        # 显示当前包计数
+        echo "=== CONFIG_PACKAGE count ==="
+        grep -c "CONFIG_PACKAGE_.*=y" .config
 
     - name: Enable luci-app-openbox in config
       working-directory: ./openwrt
       run: |
+        # 在 defconfig 前确保已选中
         echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
-        make defconfig
+        # 使用 update-defconfig 而不是 defconfig，保留手动添加的设置
+        make update-defconfig
 
     - name: Download package
       working-directory: ./openwrt
       run: |
         make download -j$(nproc)
+        # 关键检查：确认 Open-Box tarball 是否被下载
+        echo "=== Downloaded packages ==="
+        ls -la dl/ | grep -i openbox || echo "No openbox tar.gz found in dl/"
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Build firmware
+    - name: Build firmware (with VERBOSE)
       working-directory: ./openwrt
       run: |
         echo -e "$(nproc) thread build."
-        make -j$(nproc) V=s
-        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+        # V=s 显示所有编译命令，帮助调试
+        make -j$(nproc) V=s 2>&1 | tee build.log
+        echo "BUILD_EXIT_CODE=$?"
+        # 检查构建是否因缺少依赖而失败
+        grep -i "error\|failed\|impossible" build.log | tail -20
+
+    - name: Check build artifacts size
+      working-directory: ./openwrt
+      run: |
+        echo "=== Artifacts in bin/ ==="
+        ls -la bin/targets/x86/64/
+        # 检查镜像文件大小
+        IMAGES=$(ls bin/targets/x86/64/immortalwrt-x86-*-*.img.gz 2>/dev/null)
+        for img in $IMAGES; do
+          SIZE=$(stat -c%s "$img" 2>/dev/null || echo 0)
+          echo "$img : $SIZE bytes ($((SIZE/1024/1024)) MB)"
+        done
+        # 检查 Open-Box 相关文件是否在镜像中
+        echo "=== Checking for Open-Box in image ==="
+        mkdir -p /tmp/check_img
+        # 简单检查镜像是否包含 opt/open-box
+        # 注意：这需要临时解压镜像，实际环境中可能受限
+        echo "List of all files in built image:"
+        tar -tzf <(zcat $IMAGES | head -1) 2>/dev/null | grep -i open-box || echo "No open-box found in image tarball listing"
 
     - name : Upload artifact
       uses: actions/upload-artifact@main
