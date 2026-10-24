@@ -55,7 +55,14 @@ jobs:
         cp ../feeds.conf.custom feeds.conf
         cp ../.config25.12.512 .config
         # 复制 feeds 目录到 openwrt 源码树
-        cp -r ../feeds feeds/
+        if [ -d ../feeds ]; then
+          cp -r ../feeds feeds/
+          echo "Custom feeds copied successfully"
+          ls -la feeds/
+        else
+          echo "ERROR: ../feeds directory not found in repo!"
+          exit 1
+        fi
 
     - name: Update & Install feeds (including custom)
       working-directory: ./openwrt
