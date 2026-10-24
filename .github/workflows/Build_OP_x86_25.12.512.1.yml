@@ -1,0 +1,168 @@
+name: Build_x86_25.12.512.1
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        set +e
+        docker rmi `docker images -q`
+        echo "Deleting files, please wait ..."
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /etc/mysql \
+          /etc/php
+        sudo -E apt-get -y purge \
+          azure-cli \
+          ghc* \
+          zulu* \
+          hhvm \
+          llvm* \
+          firefox \
+          google* \
+          dotnet* \
+          powershell \
+          openjdk* \
+          mysql* \
+          php*
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq full-upgrade
+        sudo -E apt-get -y -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfstools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get clean
+
+    - name: Clone source code
+      env: 
+        REPO_URL: https://github.com/immortalwrt/immortalwrt
+        REPO_BRANCH: openwrt-25.12
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Copy custom feed
+      working-directory: ./openwrt
+      run: |
+        # 复制为 feeds.conf 让 feeds 脚本自动识别
+        cp ../feeds.conf.custom feeds.conf
+        # 复制 feeds 目录
+        if [ -d ../feeds ]; then
+          cp -r ../feeds feeds/
+          echo "Custom feeds copied successfully"
+          ls -la feeds/
+        else
+          echo "ERROR: ../feeds directory not found in repo!"
+          exit 1
+        fi
+
+    - name: Update & Install feeds
+      working-directory: ./openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Generate clean base config (defconfig)
+      working-directory: ./openwrt
+      run: |
+        # 先生成干净的基础配置，避免旧 config 的过时包选择干扰
+        make defconfig
+
+    - name: Enable target profile and required packages
+      working-directory: ./openwrt
+      run: |
+        # 启用 x86_64 目标配置（参考原 .config25.12.512 的关键项）
+        cat >> .config <<'EOF'
+CONFIG_TARGET_x86=y
+CONFIG_TARGET_x86_64=y
+CONFIG_TARGET_x86_64_DEVICE_generic=y
+CONFIG_TARGET_ROOTFS_PARTSIZE=650
+CONFIG_TARGET_ROOTFS_SQUASHFS=y
+CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
+CONFIG_GRUB_EFI_IMAGES=y
+CONFIG_TARGET_IMAGES_GZIP=y
+CONFIG_USE_APK=y
+CONFIG_PACKAGE_luci=y
+CONFIG_PACKAGE_luci-base=y
+CONFIG_PACKAGE_luci-mod-admin-full=y
+CONFIG_PACKAGE_luci-mod-network=y
+CONFIG_PACKAGE_luci-mod-system=y
+CONFIG_PACKAGE_luci-mod-status=y
+CONFIG_PACKAGE_luci-theme-openwrt-2020=y
+CONFIG_PACKAGE_luci-app-opkg=y
+CONFIG_PACKAGE_luci-app-firewall=y
+EOF
+
+    - name: Enable luci-app-openbox and dependencies
+      working-directory: ./openwrt
+      run: |
+        cat >> .config <<'EOF'
+# luci-app-openbox dependencies
+CONFIG_PACKAGE_kmod-tun=y
+CONFIG_PACKAGE_kmod-nft-queue=y
+CONFIG_PACKAGE_kmod-nft-nat=y
+CONFIG_PACKAGE_kmod-veth=y
+CONFIG_PACKAGE_ip-full=y
+CONFIG_PACKAGE_ca-bundle=y
+CONFIG_PACKAGE_libcap=y
+CONFIG_PACKAGE_libcap-bin=y
+# luci-app-openbox
+CONFIG_PACKAGE_luci-app-openbox=y
+EOF
+
+    - name: Finalize config (resolve dependencies)
+      working-directory: ./openwrt
+      run: |
+        # 最终解析所有依赖
+        make defconfig
+
+    - name: Verify luci-app-openbox config
+      working-directory: ./openwrt
+      run: |
+        echo "=== Check luci-app-openbox config ==="
+        grep -E "CONFIG_PACKAGE_luci-app-openbox" .config || echo "NOT FOUND in .config"
+        echo "=== Check dependencies ==="
+        grep -E "CONFIG_PACKAGE_kmod-nft-queue|CONFIG_PACKAGE_kmod-veth|CONFIG_PACKAGE_ip-full|CONFIG_PACKAGE_libcap|CONFIG_PACKAGE_libcap-bin" .config
+        echo "=== Target config ==="
+        grep -E "CONFIG_TARGET_" .config | head -20
+
+    - name: Download package
+      working-directory: ./openwrt
+      run: |
+        make download -j$(nproc)
+        echo "=== Checking for Open-Box tarball ==="
+        ls -la dl/ | grep -i openbox || echo "No openbox tar.gz found in dl/"
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Build firmware (with VERBOSE)
+      working-directory: ./openwrt
+      run: |
+        echo -e "$(nproc) thread build."
+        make -j$(nproc) V=s 2>&1 | tee build.log
+        echo "BUILD_EXIT_CODE=${PIPESTATUS[0]}"
+        grep -i "error\|failed\|impossible" build.log | tail -20
+
+    - name: Check build artifacts size
+      working-directory: ./openwrt
+      run: |
+        echo "=== Artifacts in bin/ ==="
+        ls -la bin/targets/x86/64/
+        IMAGES=$(ls bin/targets/x86/64/immortalwrt-x86-*-*.img.gz 2>/dev/null)
+        for img in $IMAGES; do
+          SIZE=$(stat -c%s "$img" 2>/dev/null || echo 0)
+          echo "$img : $SIZE bytes ($((SIZE/1024/1024)) MB)"
+        done
+
+    - name : Upload artifact
+      uses: actions/upload-artifact@main
+      with:
+        name: immortalwrt-x86-25.12.512${{ env.FILE_DATE }}
+        path: openwrt/bin/targets/x86/64/immortalwrt-x86-64-generic-squashfs-combined-efi.img.gz
