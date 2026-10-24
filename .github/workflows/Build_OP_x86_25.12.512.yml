@@ -70,6 +70,13 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+    - name: Enable luci-app-openbox in config
+      working-directory: ./openwrt
+      run: |
+        echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
+        # 使用 defconfig 而非 update-defconfig，更宽容，能处理现有 config 的依赖问题
+        make defconfig
+
     - name: Verify luci-app-openbox config
       working-directory: ./openwrt
       run: |
@@ -79,12 +86,6 @@ jobs:
         grep -E "CONFIG_PACKAGE_kmod-nft-queue|CONFIG_PACKAGE_kmod-veth|CONFIG_PACKAGE_ip-full|CONFIG_PACKAGE_libcap|CONFIG_PACKAGE_libcap-bin" .config
         echo "=== Total packages ==="
         grep -c "CONFIG_PACKAGE_.*=y" .config
-
-    - name: Enable luci-app-openbox in config
-      working-directory: ./openwrt
-      run: |
-        echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
-        make update-defconfig
 
     - name: Download package
       working-directory: ./openwrt
