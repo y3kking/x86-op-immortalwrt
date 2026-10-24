@@ -1,4 +1,4 @@
-name: Build_x86_25.12.512.1
+name: Build_x86_25.12.512
 
 on: 
   workflow_dispatch:
@@ -51,9 +51,7 @@ jobs:
     - name: Copy custom feed
       working-directory: ./openwrt
       run: |
-        # 复制为 feeds.conf 让 feeds 脚本自动识别
         cp ../feeds.conf.custom feeds.conf
-        # 复制 feeds 目录
         if [ -d ../feeds ]; then
           cp -r ../feeds feeds/
           echo "Custom feeds copied successfully"
@@ -72,55 +70,46 @@ jobs:
     - name: Generate clean base config (defconfig)
       working-directory: ./openwrt
       run: |
-        # 先生成干净的基础配置，避免旧 config 的过时包选择干扰
         make defconfig
 
     - name: Enable target profile and required packages
       working-directory: ./openwrt
       run: |
-        # 启用 x86_64 目标配置（参考原 .config25.12.512 的关键项）
-        cat >> .config <<'EOF'
-CONFIG_TARGET_x86=y
-CONFIG_TARGET_x86_64=y
-CONFIG_TARGET_x86_64_DEVICE_generic=y
-CONFIG_TARGET_ROOTFS_PARTSIZE=650
-CONFIG_TARGET_ROOTFS_SQUASHFS=y
-CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
-CONFIG_GRUB_EFI_IMAGES=y
-CONFIG_TARGET_IMAGES_GZIP=y
-CONFIG_USE_APK=y
-CONFIG_PACKAGE_luci=y
-CONFIG_PACKAGE_luci-base=y
-CONFIG_PACKAGE_luci-mod-admin-full=y
-CONFIG_PACKAGE_luci-mod-network=y
-CONFIG_PACKAGE_luci-mod-system=y
-CONFIG_PACKAGE_luci-mod-status=y
-CONFIG_PACKAGE_luci-theme-openwrt-2020=y
-CONFIG_PACKAGE_luci-app-opkg=y
-CONFIG_PACKAGE_luci-app-firewall=y
-EOF
+        echo "CONFIG_TARGET_x86=y" >> .config
+        echo "CONFIG_TARGET_x86_64=y" >> .config
+        echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
+        echo "CONFIG_TARGET_ROOTFS_PARTSIZE=650" >> .config
+        echo "CONFIG_TARGET_ROOTFS_SQUASHFS=y" >> .config
+        echo "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256" >> .config
+        echo "CONFIG_GRUB_EFI_IMAGES=y" >> .config
+        echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
+        echo "CONFIG_USE_APK=y" >> .config
+        echo "CONFIG_PACKAGE_luci=y" >> .config
+        echo "CONFIG_PACKAGE_luci-base=y" >> .config
+        echo "CONFIG_PACKAGE_luci-mod-admin-full=y" >> .config
+        echo "CONFIG_PACKAGE_luci-mod-network=y" >> .config
+        echo "CONFIG_PACKAGE_luci-mod-system=y" >> .config
+        echo "CONFIG_PACKAGE_luci-mod-status=y" >> .config
+        echo "CONFIG_PACKAGE_luci-theme-openwrt-2020=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-opkg=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-firewall=y" >> .config
 
     - name: Enable luci-app-openbox and dependencies
       working-directory: ./openwrt
       run: |
-        cat >> .config <<'EOF'
-# luci-app-openbox dependencies
-CONFIG_PACKAGE_kmod-tun=y
-CONFIG_PACKAGE_kmod-nft-queue=y
-CONFIG_PACKAGE_kmod-nft-nat=y
-CONFIG_PACKAGE_kmod-veth=y
-CONFIG_PACKAGE_ip-full=y
-CONFIG_PACKAGE_ca-bundle=y
-CONFIG_PACKAGE_libcap=y
-CONFIG_PACKAGE_libcap-bin=y
-# luci-app-openbox
-CONFIG_PACKAGE_luci-app-openbox=y
-EOF
+        echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-nft-queue=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-nft-nat=y" >> .config
+        echo "CONFIG_PACKAGE_kmod-veth=y" >> .config
+        echo "CONFIG_PACKAGE_ip-full=y" >> .config
+        echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
+        echo "CONFIG_PACKAGE_libcap=y" >> .config
+        echo "CONFIG_PACKAGE_libcap-bin=y" >> .config
+        echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
 
     - name: Finalize config (resolve dependencies)
       working-directory: ./openwrt
       run: |
-        # 最终解析所有依赖
         make defconfig
 
     - name: Verify luci-app-openbox config
