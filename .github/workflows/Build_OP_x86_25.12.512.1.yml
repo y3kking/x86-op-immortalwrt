@@ -1,4 +1,4 @@
-name: Build_x86_25.12.512.1
+name: Build_x86_25.12.512
 
 on: 
   workflow_dispatch:
@@ -75,42 +75,44 @@ jobs:
     - name: Enable target profile and required packages
       working-directory: ./openwrt
       run: |
-        echo "CONFIG_TARGET_x86=y" >> .config
-        echo "CONFIG_TARGET_x86_64=y" >> .config
-        echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
-        echo "CONFIG_TARGET_ROOTFS_PARTSIZE=650" >> .config
-        echo "CONFIG_TARGET_ROOTFS_SQUASHFS=y" >> .config
-        echo "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256" >> .config
-        echo "CONFIG_GRUB_EFI_IMAGES=y" >> .config
-        echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
-        echo "CONFIG_USE_APK=y" >> .config
-        echo "CONFIG_PACKAGE_luci=y" >> .config
-        echo "CONFIG_PACKAGE_luci-base=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-admin-full=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-network=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-system=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-status=y" >> .config
-        echo "CONFIG_PACKAGE_luci-theme-openwrt-2020=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-opkg=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-firewall=y" >> .config
+        # Use scripts/config to properly set config values (preserved by olddefconfig)
+        ./scripts/config --enable CONFIG_TARGET_x86
+        ./scripts/config --enable CONFIG_TARGET_x86_64
+        ./scripts/config --enable CONFIG_TARGET_x86_64_DEVICE_generic
+        ./scripts/config --set-val CONFIG_TARGET_ROOTFS_PARTSIZE 650
+        ./scripts/config --enable CONFIG_TARGET_ROOTFS_SQUASHFS
+        ./scripts/config --set-val CONFIG_TARGET_SQUASHFS_BLOCK_SIZE 256
+        ./scripts/config --enable CONFIG_GRUB_EFI_IMAGES
+        ./scripts/config --enable CONFIG_TARGET_IMAGES_GZIP
+        ./scripts/config --enable CONFIG_USE_APK
+        ./scripts/config --enable CONFIG_PACKAGE_luci
+        ./scripts/config --enable CONFIG_PACKAGE_luci-base
+        ./scripts/config --enable CONFIG_PACKAGE_luci-mod-admin-full
+        ./scripts/config --enable CONFIG_PACKAGE_luci-mod-network
+        ./scripts/config --enable CONFIG_PACKAGE_luci-mod-system
+        ./scripts/config --enable CONFIG_PACKAGE_luci-mod-status
+        ./scripts/config --enable CONFIG_PACKAGE_luci-theme-openwrt-2020
+        ./scripts/config --enable CONFIG_PACKAGE_luci-app-opkg
+        ./scripts/config --enable CONFIG_PACKAGE_luci-app-firewall
 
     - name: Enable luci-app-openbox and dependencies
       working-directory: ./openwrt
       run: |
-        echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-nft-queue=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-nft-nat=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-veth=y" >> .config
-        echo "CONFIG_PACKAGE_ip-full=y" >> .config
-        echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
-        echo "CONFIG_PACKAGE_libcap=y" >> .config
-        echo "CONFIG_PACKAGE_libcap-bin=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
+        ./scripts/config --enable CONFIG_PACKAGE_kmod-tun
+        ./scripts/config --enable CONFIG_PACKAGE_kmod-nft-queue
+        ./scripts/config --enable CONFIG_PACKAGE_kmod-nft-nat
+        ./scripts/config --enable CONFIG_PACKAGE_kmod-veth
+        ./scripts/config --enable CONFIG_PACKAGE_ip-full
+        ./scripts/config --enable CONFIG_PACKAGE_ca-bundle
+        ./scripts/config --enable CONFIG_PACKAGE_libcap
+        ./scripts/config --enable CONFIG_PACKAGE_libcap-bin
+        ./scripts/config --enable CONFIG_PACKAGE_luci-app-openbox
 
-    - name: Finalize config (resolve dependencies)
+    - name: Finalize config (resolve dependencies, preserve explicit settings)
       working-directory: ./openwrt
       run: |
-        make defconfig
+        # olddefconfig preserves explicitly set values, only resolves dependencies
+        make olddefconfig
 
     - name: Verify luci-app-openbox config
       working-directory: ./openwrt
@@ -120,7 +122,7 @@ jobs:
         echo "=== Check dependencies ==="
         grep -E "CONFIG_PACKAGE_kmod-nft-queue|CONFIG_PACKAGE_kmod-veth|CONFIG_PACKAGE_ip-full|CONFIG_PACKAGE_libcap|CONFIG_PACKAGE_libcap-bin" .config
         echo "=== Target config ==="
-        grep -E "CONFIG_TARGET_" .config | head -20
+        grep -E "CONFIG_TARGET_x86" .config
 
     - name: Download package
       working-directory: ./openwrt
