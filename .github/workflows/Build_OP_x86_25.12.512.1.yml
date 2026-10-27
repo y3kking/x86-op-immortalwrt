@@ -110,8 +110,8 @@ jobs:
     - name: Finalize config (resolve dependencies, preserve explicit settings)
       working-directory: ./openwrt
       run: |
-        # olddefconfig preserves explicitly set values, only resolves dependencies
-        make olddefconfig
+        # Modern defconfig preserves explicitly set values (non-default)
+        make defconfig
 
     - name: Verify luci-app-openbox config
       working-directory: ./openwrt
