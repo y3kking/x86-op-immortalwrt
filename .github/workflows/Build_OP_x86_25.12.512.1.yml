@@ -134,6 +134,13 @@ jobs:
         echo "=== Patched .config entries ==="
         grep -E "^CONFIG_(TARGET_|PACKAGE_)" .config | sort
 
+    - name: Sync config (resolve dependencies, preserve explicit values)
+      working-directory: ./openwrt
+      run: |
+        # syncconfig resolves dependencies while keeping user-set values
+        # Modern replacement for olddefconfig, handles new symbols
+        make syncconfig
+
     - name: Verify luci-app-openbox config (must be y)
       working-directory: ./openwrt
       run: |
