@@ -1,6 +1,6 @@
 name: Build_x86_25.12.512.1
 
-on: 
+on:
   workflow_dispatch:
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
         sudo -E apt-get clean
 
     - name: Clone source code
-      env: 
+      env:
         REPO_URL: https://github.com/immortalwrt/immortalwrt
         REPO_BRANCH: openwrt-25.12
       run: |
@@ -67,55 +67,82 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Enable target profile and all required packages
+    - name: Generate base config (ONLY defconfig run)
       working-directory: ./openwrt
       run: |
-        # Target profile
-        echo "CONFIG_TARGET_x86=y" >> .config
-        echo "CONFIG_TARGET_x86_64=y" >> .config
-        echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
-        echo "CONFIG_TARGET_ROOTFS_PARTSIZE=650" >> .config
-        echo "CONFIG_TARGET_ROOTFS_SQUASHFS=y" >> .config
-        echo "CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256" >> .config
-        echo "CONFIG_GRUB_EFI_IMAGES=y" >> .config
-        echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
-        echo "CONFIG_USE_APK=y" >> .config
-        # Core LuCI
-        echo "CONFIG_PACKAGE_luci=y" >> .config
-        echo "CONFIG_PACKAGE_luci-base=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-admin-full=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-network=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-system=y" >> .config
-        echo "CONFIG_PACKAGE_luci-mod-status=y" >> .config
-        echo "CONFIG_PACKAGE_luci-theme-openwrt-2020=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-opkg=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-firewall=y" >> .config
-        # Open-Box dependencies
-        echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-nft-queue=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-nft-nat=y" >> .config
-        echo "CONFIG_PACKAGE_kmod-veth=y" >> .config
-        echo "CONFIG_PACKAGE_ip-full=y" >> .config
-        echo "CONFIG_PACKAGE_ca-bundle=y" >> .config
-        echo "CONFIG_PACKAGE_libcap=y" >> .config
-        echo "CONFIG_PACKAGE_libcap-bin=y" >> .config
-        echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
-
-    - name: Finalize config (resolve dependencies ONCE)
-      working-directory: ./openwrt
-      run: |
-        # Single defconfig at the end - preserves our explicit y values
         make defconfig
 
-    - name: Verify luci-app-openbox config
+    - name: Enable target profile and all packages by patching .config directly
+      working-directory: ./openwrt
+      run: |
+        # Helper: set a config value to y (enable), adding if missing, replacing if present
+        set_config() {
+          local key="$1"
+          if grep -q "^${key}=" .config; then
+            sed -i "s/^${key}=.*/${key}=y/" .config
+          else
+            echo "${key}=y" >> .config
+          fi
+        }
+
+        # Helper: set a config value to a specific string (e.g., numbers)
+        set_config_val() {
+          local key="$1"
+          local val="$2"
+          if grep -q "^${key}=" .config; then
+            sed -i "s/^${key}=.*/${key}=${val}/" .config
+          else
+            echo "${key}=${val}" >> .config
+          fi
+        }
+
+        # --- Target profile (x86_64 generic EFI) ---
+        set_config CONFIG_TARGET_x86
+        set_config CONFIG_TARGET_x86_64
+        set_config CONFIG_TARGET_x86_64_DEVICE_generic
+        set_config_val CONFIG_TARGET_ROOTFS_PARTSIZE 650
+        set_config CONFIG_TARGET_ROOTFS_SQUASHFS
+        set_config_val CONFIG_TARGET_SQUASHFS_BLOCK_SIZE 256
+        set_config CONFIG_GRUB_EFI_IMAGES
+        set_config CONFIG_TARGET_IMAGES_GZIP
+        set_config CONFIG_USE_APK
+
+        # --- Core LuCI ---
+        set_config CONFIG_PACKAGE_luci
+        set_config CONFIG_PACKAGE_luci-base
+        set_config CONFIG_PACKAGE_luci-mod-admin-full
+        set_config CONFIG_PACKAGE_luci-mod-network
+        set_config CONFIG_PACKAGE_luci-mod-system
+        set_config CONFIG_PACKAGE_luci-mod-status
+        set_config CONFIG_PACKAGE_luci-theme-openwrt-2020
+        set_config CONFIG_PACKAGE_luci-app-opkg
+        set_config CONFIG_PACKAGE_luci-app-firewall
+
+        # --- Open-Box dependencies ---
+        set_config CONFIG_PACKAGE_kmod-tun
+        set_config CONFIG_PACKAGE_kmod-nft-queue
+        set_config CONFIG_PACKAGE_kmod-nft-nat
+        set_config CONFIG_PACKAGE_kmod-veth
+        set_config CONFIG_PACKAGE_ip-full
+        set_config CONFIG_PACKAGE_ca-bundle
+        set_config CONFIG_PACKAGE_libcap
+        set_config CONFIG_PACKAGE_libcap-bin
+
+        # --- Open-Box main package ---
+        set_config CONFIG_PACKAGE_luci-app-openbox
+
+        echo "=== Patched .config entries ==="
+        grep -E "^CONFIG_(TARGET_|PACKAGE_)" .config | sort
+
+    - name: Verify luci-app-openbox config (must be y)
       working-directory: ./openwrt
       run: |
         echo "=== Check luci-app-openbox config ==="
-        grep -E "CONFIG_PACKAGE_luci-app-openbox" .config || echo "NOT FOUND in .config"
+        grep -E "^CONFIG_PACKAGE_luci-app-openbox=" .config || { echo "NOT FOUND in .config"; exit 1; }
         echo "=== Check dependencies ==="
-        grep -E "CONFIG_PACKAGE_kmod-nft-queue|CONFIG_PACKAGE_kmod-veth|CONFIG_PACKAGE_ip-full|CONFIG_PACKAGE_libcap|CONFIG_PACKAGE_libcap-bin" .config
+        grep -E "^CONFIG_PACKAGE_(kmod-nft-queue|kmod-veth|ip-full|libcap|libcap-bin)=" .config
         echo "=== Target config ==="
-        grep -E "CONFIG_TARGET_x86" .config
+        grep -E "^CONFIG_TARGET_x86" .config
 
     - name: Download package
       working-directory: ./openwrt
@@ -145,7 +172,7 @@ jobs:
           echo "$img : $SIZE bytes ($((SIZE/1024/1024)) MB)"
         done
 
-    - name : Upload artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@main
       with:
         name: immortalwrt-x86-25.12.512${{ env.FILE_DATE }}
