@@ -67,14 +67,10 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Generate clean base config (defconfig)
+    - name: Enable target profile and all required packages
       working-directory: ./openwrt
       run: |
-        make defconfig
-
-    - name: Enable target profile and required packages
-      working-directory: ./openwrt
-      run: |
+        # Target profile
         echo "CONFIG_TARGET_x86=y" >> .config
         echo "CONFIG_TARGET_x86_64=y" >> .config
         echo "CONFIG_TARGET_x86_64_DEVICE_generic=y" >> .config
@@ -84,6 +80,7 @@ jobs:
         echo "CONFIG_GRUB_EFI_IMAGES=y" >> .config
         echo "CONFIG_TARGET_IMAGES_GZIP=y" >> .config
         echo "CONFIG_USE_APK=y" >> .config
+        # Core LuCI
         echo "CONFIG_PACKAGE_luci=y" >> .config
         echo "CONFIG_PACKAGE_luci-base=y" >> .config
         echo "CONFIG_PACKAGE_luci-mod-admin-full=y" >> .config
@@ -93,10 +90,7 @@ jobs:
         echo "CONFIG_PACKAGE_luci-theme-openwrt-2020=y" >> .config
         echo "CONFIG_PACKAGE_luci-app-opkg=y" >> .config
         echo "CONFIG_PACKAGE_luci-app-firewall=y" >> .config
-
-    - name: Enable luci-app-openbox and dependencies
-      working-directory: ./openwrt
-      run: |
+        # Open-Box dependencies
         echo "CONFIG_PACKAGE_kmod-tun=y" >> .config
         echo "CONFIG_PACKAGE_kmod-nft-queue=y" >> .config
         echo "CONFIG_PACKAGE_kmod-nft-nat=y" >> .config
@@ -107,10 +101,10 @@ jobs:
         echo "CONFIG_PACKAGE_libcap-bin=y" >> .config
         echo "CONFIG_PACKAGE_luci-app-openbox=y" >> .config
 
-    - name: Finalize config (resolve dependencies, preserve explicit settings)
+    - name: Finalize config (resolve dependencies ONCE)
       working-directory: ./openwrt
       run: |
-        # Modern defconfig preserves explicitly set values (non-default)
+        # Single defconfig at the end - preserves our explicit y values
         make defconfig
 
     - name: Verify luci-app-openbox config
