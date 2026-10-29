@@ -67,79 +67,53 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Generate base config (ONLY defconfig run)
+    - name: Create config seed (pre-set all desired values BEFORE defconfig)
       working-directory: ./openwrt
       run: |
-        make defconfig
+        cat > .config.seed <<'EOF'
+        # Target profile (x86_64 generic EFI)
+        CONFIG_TARGET_x86=y
+        CONFIG_TARGET_x86_64=y
+        CONFIG_TARGET_x86_64_DEVICE_generic=y
+        CONFIG_TARGET_ROOTFS_PARTSIZE=650
+        CONFIG_TARGET_ROOTFS_SQUASHFS=y
+        CONFIG_TARGET_SQUASHFS_BLOCK_SIZE=256
+        CONFIG_GRUB_EFI_IMAGES=y
+        CONFIG_TARGET_IMAGES_GZIP=y
+        CONFIG_USE_APK=y
 
-    - name: Enable target profile and all packages by patching .config directly
+        # Core LuCI
+        CONFIG_PACKAGE_luci=y
+        CONFIG_PACKAGE_luci-base=y
+        CONFIG_PACKAGE_luci-mod-admin-full=y
+        CONFIG_PACKAGE_luci-mod-network=y
+        CONFIG_PACKAGE_luci-mod-system=y
+        CONFIG_PACKAGE_luci-mod-status=y
+        CONFIG_PACKAGE_luci-theme-openwrt-2020=y
+        CONFIG_PACKAGE_luci-app-opkg=y
+        CONFIG_PACKAGE_luci-app-firewall=y
+
+        # Open-Box dependencies
+        CONFIG_PACKAGE_kmod-tun=y
+        CONFIG_PACKAGE_kmod-nft-queue=y
+        CONFIG_PACKAGE_kmod-nft-nat=y
+        CONFIG_PACKAGE_kmod-veth=y
+        CONFIG_PACKAGE_ip-full=y
+        CONFIG_PACKAGE_ca-bundle=y
+        CONFIG_PACKAGE_libcap=y
+        CONFIG_PACKAGE_libcap-bin=y
+
+        # Open-Box main package
+        CONFIG_PACKAGE_luci-app-openbox=y
+        EOF
+        echo "=== Created .config.seed ==="
+        cat .config.seed
+
+    - name: Generate config with seed (single defconfig respects seed)
       working-directory: ./openwrt
       run: |
-        # Helper: set a config value to y (enable), adding if missing, replacing if present
-        set_config() {
-          local key="$1"
-          if grep -q "^${key}=" .config; then
-            sed -i "s/^${key}=.*/${key}=y/" .config
-          else
-            echo "${key}=y" >> .config
-          fi
-        }
-
-        # Helper: set a config value to a specific string (e.g., numbers)
-        set_config_val() {
-          local key="$1"
-          local val="$2"
-          if grep -q "^${key}=" .config; then
-            sed -i "s/^${key}=.*/${key}=${val}/" .config
-          else
-            echo "${key}=${val}" >> .config
-          fi
-        }
-
-        # --- Target profile (x86_64 generic EFI) ---
-        set_config CONFIG_TARGET_x86
-        set_config CONFIG_TARGET_x86_64
-        set_config CONFIG_TARGET_x86_64_DEVICE_generic
-        set_config_val CONFIG_TARGET_ROOTFS_PARTSIZE 650
-        set_config CONFIG_TARGET_ROOTFS_SQUASHFS
-        set_config_val CONFIG_TARGET_SQUASHFS_BLOCK_SIZE 256
-        set_config CONFIG_GRUB_EFI_IMAGES
-        set_config CONFIG_TARGET_IMAGES_GZIP
-        set_config CONFIG_USE_APK
-
-        # --- Core LuCI ---
-        set_config CONFIG_PACKAGE_luci
-        set_config CONFIG_PACKAGE_luci-base
-        set_config CONFIG_PACKAGE_luci-mod-admin-full
-        set_config CONFIG_PACKAGE_luci-mod-network
-        set_config CONFIG_PACKAGE_luci-mod-system
-        set_config CONFIG_PACKAGE_luci-mod-status
-        set_config CONFIG_PACKAGE_luci-theme-openwrt-2020
-        set_config CONFIG_PACKAGE_luci-app-opkg
-        set_config CONFIG_PACKAGE_luci-app-firewall
-
-        # --- Open-Box dependencies ---
-        set_config CONFIG_PACKAGE_kmod-tun
-        set_config CONFIG_PACKAGE_kmod-nft-queue
-        set_config CONFIG_PACKAGE_kmod-nft-nat
-        set_config CONFIG_PACKAGE_kmod-veth
-        set_config CONFIG_PACKAGE_ip-full
-        set_config CONFIG_PACKAGE_ca-bundle
-        set_config CONFIG_PACKAGE_libcap
-        set_config CONFIG_PACKAGE_libcap-bin
-
-        # --- Open-Box main package ---
-        set_config CONFIG_PACKAGE_luci-app-openbox
-
-        echo "=== Patched .config entries ==="
-        grep -E "^CONFIG_(TARGET_|PACKAGE_)" .config | sort
-
-    - name: Sync config (resolve dependencies, preserve explicit values)
-      working-directory: ./openwrt
-      run: |
-        # syncconfig resolves dependencies while keeping user-set values
-        # Modern replacement for olddefconfig, handles new symbols
-        make syncconfig
+        # KCONFIG_ALLCONFIG=.config.seed makes defconfig use our seed values
+        make KCONFIG_ALLCONFIG=.config.seed defconfig
 
     - name: Verify luci-app-openbox config (must be y)
       working-directory: ./openwrt
