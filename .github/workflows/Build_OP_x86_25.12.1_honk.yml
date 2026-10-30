@@ -1,0 +1,106 @@
+name: Build_x86_25.12.1_honk
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@master
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        set +e
+        docker rmi `docker images -q`
+        echo "Deleting files, please wait ..."
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /etc/mysql \
+          /etc/php
+        sudo -E apt-get -y purge \
+          azure-cli \
+          ghc* \
+          zulu* \
+          hhvm \
+          llvm* \
+          firefox \
+          google* \
+          dotnet* \
+          powershell \
+          openjdk* \
+          mysql* \
+          php*
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq full-upgrade
+        sudo -E apt-get -y -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get clean
+
+    - name: Install Rust toolchain for honk
+      run: |
+        set -e
+        # honk 的 build.sh 需要稳定版 Rust 编译 honk-core，并需要 nightly（带 rust-src / llvm-tools）编译 eBPF 对象。
+        # 版本与 daeuniverse/honk v0.1.0-beta.1 的 rust-toolchain.toml 保持一致。
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+        . "$HOME/.cargo/env"
+        rustup toolchain install 1.99.1 --profile minimal --components rustfmt clippy
+        rustup toolchain install nightly-2026-10-20 --profile minimal --components rust-src llvm-tools
+        rustup default 1.99.1
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: Clone source code
+      env:
+        REPO_URL: https://github.com/immortalwrt/immortalwrt
+        REPO_BRANCH: openwrt-25.12
+      run: |
+        git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Update & Install feeds
+      working-directory: ./openwrt
+      run: |
+        # 完全替换 Passwall：从 feeds.conf.default 中移除 passwall feed，改用 daeuniverse honk feed
+        grep -v 'passwall' feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
+        printf "src-git daeuniverse https://github.com/daeuniverse/openwrt-packages.git;main\n" >> feeds.conf.default
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        # 规避 immortalwrt 25.12 feeds/luci/applications/luci-app-weechat Makefile 自依赖
+        #（symbol PACKAGE_luci-app-weechat depends on PACKAGE_luci-app-weechat）导致 make defconfig 报递归依赖。
+        # .config25.12.1 未选中 weechat，移除该包安全。
+        rm -rf feeds/luci/applications/luci-app-weechat package/feeds/luci/luci-app-weechat
+        # honk package 的 Build/Prepare 要求源码树位于 feeds/daeuniverse/honk/src
+        git clone --depth 1 --branch v0.1.0-beta.1 https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
+
+    - name: Configuration Customization - Build_x86
+      env:
+        CONFIG_FILE: '.config25.12.1_honk'
+      run: |
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        cd openwrt
+        # .config25.12.1_honk 已预置：关闭 passwall feed，启用 honk/luci-app-honk/vmlinux-btf-builtin
+        make defconfig
+
+    - name: Download package
+      working-directory: ./openwrt
+      run: |
+        make download -j$(nproc)
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Build firmware
+      working-directory: ./openwrt
+      run: |
+        echo -e "$(nproc) thread build."
+        make -j$(nproc) V=s
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@main
+      with:
+        name: immortalwrt-x86-25.12.1-honk${{ env.FILE_DATE }}
+        path: openwrt/bin/targets/x86/64/immortalwrt-x86-64-generic-squashfs-combined-efi.img.gz
