@@ -67,6 +67,7 @@ jobs:
           echo "CONFIG_PACKAGE_vmlinux-btf-builtin=y"
           echo "# CONFIG_PACKAGE_passwall is not set"
           echo "# CONFIG_PACKAGE_luci-app-passwall is not set"
+          echo "# CONFIG_PACKAGE_luci-app-weechat is not set"
         } >> .config
         make defconfig
 
