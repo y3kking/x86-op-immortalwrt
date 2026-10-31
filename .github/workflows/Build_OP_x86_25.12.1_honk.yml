@@ -48,8 +48,8 @@ jobs:
         # 版本与 daeuniverse/honk v0.1.0-beta.1 的 rust-toolchain.toml 保持一致。
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
         . "$HOME/.cargo/env"
-        rustup toolchain install 1.99.1 --profile minimal --components rustfmt clippy
-        rustup toolchain install nightly-2026-10-20 --profile minimal --components rust-src llvm-tools
+        rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+        rustup toolchain install nightly-2026-10-20 --profile minimal --component rust-src --component llvm-tools
         rustup default 1.99.1
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       shell: bash
