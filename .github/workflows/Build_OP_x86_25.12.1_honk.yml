@@ -51,6 +51,8 @@ jobs:
         rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
         rustup toolchain install nightly-2026-10-20 --profile minimal --component rust-src --component llvm-tools
         rustup default 1.99.1
+        # OpenWrt 构建使用 musl libc，honk 的 Rust 代码必须为 musl 目标编译，需预先添加该 target。
+        rustup target add x86_64-unknown-linux-musl
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       shell: bash
 
