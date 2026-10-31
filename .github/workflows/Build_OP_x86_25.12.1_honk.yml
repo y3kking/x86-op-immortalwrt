@@ -53,6 +53,8 @@ jobs:
         rustup default 1.99.1
         # OpenWrt 构建使用 musl libc，honk 的 Rust 代码必须为 musl 目标编译，需预先添加该 target。
         rustup target add x86_64-unknown-linux-musl
+        # honk 构建 eBPF 对象时需要 bpf-linker 作为链接器（与 daeuniverse/honk release.yml 保持一致）
+        cargo install bpf-linker --version 0.10.3
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       shell: bash
 
