@@ -41,18 +41,7 @@ jobs:
         sudo -E apt-get -y autoremove --purge
         sudo -E apt-get clean
 
-    - name: Install Rust toolchain for honk
-      run: |
-        set -e
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-        . "$HOME/.cargo/env"
-        rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-        rustup toolchain install nightly-2026-10-20 --profile minimal --component rust-src --component llvm-tools
-        rustup default 1.99.1
-        rustup target add x86_64-unknown-linux-musl
-        cargo install bpf-linker --version 0.10.3
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      shell: bash
+
 
     - name: Clone source code
       env:
@@ -69,7 +58,48 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
         rm -rf feeds/luci/applications/luci-app-weechat package/feeds/luci/luci-app-weechat
-        git clone --depth 1 --branch main https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
+        LATEST_TAG=$(git ls-remote --tags --refs --sort=-version:refname \
+          'https://github.com/daeuniverse/honk.git' \
+          'refs/tags/v*' \
+          | head -n1 \
+          | awk -F/ '{print $NF}')
+        echo "Latest honk tag: ${LATEST_TAG:-<none>}"
+        if [ -z "$LATEST_TAG" ]; then
+          echo "::error::Failed to fetch latest honk tag"
+          exit 1
+        fi
+        git clone --depth 1 --branch "$LATEST_TAG" https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
+        echo "HONK_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+    - name: Install Rust toolchain for honk
+      run: |
+        set -e
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+        . "$HOME/.cargo/env"
+
+        HONK_TOOLCHAIN_FILE="feeds/daeuniverse/honk/src/rust-toolchain.toml"
+        if [ -f "$HONK_TOOLCHAIN_FILE" ]; then
+          HONK_CHANNEL=$(grep -E '^\s*channel\s*=' "$HONK_TOOLCHAIN_FILE" | head -n1 | sed 's/.*=//; s/["]//g; s/^[[:space:]]*//')
+          if [ -n "$HONK_CHANNEL" ]; then
+            echo "Using Rust channel from honk rust-toolchain.toml: $HONK_CHANNEL"
+            rustup toolchain install "$HONK_CHANNEL" --profile minimal --component rustfmt --component clippy
+            rustup default "$HONK_CHANNEL"
+          else
+            echo "honk rust-toolchain.toml has no channel, falling back to 1.99.1"
+            rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+            rustup default 1.99.1
+          fi
+        else
+          echo "honk rust-toolchain.toml not found, falling back to 1.99.1"
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+          rustup default 1.99.1
+        fi
+
+        rustup toolchain install nightly-2026-07-20 --profile minimal --component rust-src --component llvm-tools
+        rustup target add x86_64-unknown-linux-musl
+        cargo install bpf-linker --version 0.10.3
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      shell: bash
 
     - name: Configuration Customization - Build_x86
       env:
