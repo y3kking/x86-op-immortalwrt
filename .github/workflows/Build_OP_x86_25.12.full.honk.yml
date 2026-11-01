@@ -73,7 +73,7 @@ jobs:
 
     - name: Configuration Customization - Build_x86
       env:
-        CONFIG_FILE: '.config25.12.1_honk'
+        CONFIG_FILE: '.config25.12.full.honk'
       run: |
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         cd openwrt
