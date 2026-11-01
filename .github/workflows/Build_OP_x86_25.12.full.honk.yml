@@ -46,7 +46,7 @@ jobs:
     - name: Clone source code
       env:
         REPO_URL: https://github.com/immortalwrt/immortalwrt
-        REPO_BRANCH: openwrt-25.12
+        REPO_BRANCH: v25.12.2
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
 
@@ -126,5 +126,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@main
       with:
-        name: immortalwrt-x86-25.12.honk${{ env.FILE_DATE }}
+        name: immortalwrt-x86-25.12.2-honk${{ env.FILE_DATE }}
         path: openwrt/bin/targets/x86/64/immortalwrt-x86-64-generic-squashfs-combined-efi.img.gz
