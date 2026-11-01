@@ -69,7 +69,7 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
         rm -rf feeds/luci/applications/luci-app-weechat package/feeds/luci/luci-app-weechat
-        git clone --depth 1 --branch v0.1.0-beta.1 https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
+        git clone --depth 1 --branch main https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
 
     - name: Configuration Customization - Build_x86
       env:
