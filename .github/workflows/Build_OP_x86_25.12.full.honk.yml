@@ -1,4 +1,4 @@
-name: Build_OP_x86_25.12.full.honk
+name: Build_x86_25.12.full.honk
 
 on:
   workflow_dispatch:
