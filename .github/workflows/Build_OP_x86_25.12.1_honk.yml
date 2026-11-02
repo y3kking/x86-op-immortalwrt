@@ -44,16 +44,12 @@ jobs:
     - name: Install Rust toolchain for honk
       run: |
         set -e
-        # honk 的 build.sh 需要稳定版 Rust 编译 honk-core，并需要 nightly（带 rust-src / llvm-tools）编译 eBPF 对象。
-        # 版本与 daeuniverse/honk v0.1.0-beta.1 的 rust-toolchain.toml 保持一致。
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
         . "$HOME/.cargo/env"
         rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
         rustup toolchain install nightly-2026-10-20 --profile minimal --component rust-src --component llvm-tools
         rustup default 1.99.1
-        # OpenWrt 构建使用 musl libc，honk 的 Rust 代码必须为 musl 目标编译，需预先添加该 target。
         rustup target add x86_64-unknown-linux-musl
-        # honk 构建 eBPF 对象时需要 bpf-linker 作为链接器（与 daeuniverse/honk release.yml 保持一致）
         cargo install bpf-linker --version 0.10.3
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       shell: bash
@@ -61,23 +57,18 @@ jobs:
     - name: Clone source code
       env:
         REPO_URL: https://github.com/immortalwrt/immortalwrt
-        REPO_BRANCH: openwrt-25.12
+        REPO_BRANCH: v25.12.2
       run: |
         git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
 
     - name: Update & Install feeds
       working-directory: ./openwrt
       run: |
-        # 完全替换 Passwall：从 feeds.conf.default 中移除 passwall feed，改用 daeuniverse honk feed
         grep -v 'passwall' feeds.conf.default > feeds.conf.default.new && mv feeds.conf.default.new feeds.conf.default
         printf "src-git daeuniverse https://github.com/daeuniverse/openwrt-packages.git;main\n" >> feeds.conf.default
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        # 规避 immortalwrt 25.12 feeds/luci/applications/luci-app-weechat Makefile 自依赖
-        #（symbol PACKAGE_luci-app-weechat depends on PACKAGE_luci-app-weechat）导致 make defconfig 报递归依赖。
-        # .config25.12.1 未选中 weechat，移除该包安全。
         rm -rf feeds/luci/applications/luci-app-weechat package/feeds/luci/luci-app-weechat
-        # honk package 的 Build/Prepare 要求源码树位于 feeds/daeuniverse/honk/src
         git clone --depth 1 --branch v0.1.0-beta.1 https://github.com/daeuniverse/honk.git feeds/daeuniverse/honk/src
 
     - name: Configuration Customization - Build_x86
