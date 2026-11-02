@@ -77,26 +77,20 @@ jobs:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
         . "$HOME/.cargo/env"
 
-        HONK_TOOLCHAIN_FILE="feeds/daeuniverse/honk/src/rust-toolchain.toml"
-        if [ -f "$HONK_TOOLCHAIN_FILE" ]; then
-          HONK_CHANNEL=$(grep -E '^\s*channel\s*=' "$HONK_TOOLCHAIN_FILE" | head -n1 | sed 's/.*=//; s/["]//g; s/^[[:space:]]*//')
-          if [ -n "$HONK_CHANNEL" ]; then
-            echo "Using Rust channel from honk rust-toolchain.toml: $HONK_CHANNEL"
-            rustup toolchain install "$HONK_CHANNEL" --profile minimal --component rustfmt --component clippy --component rust-src
-            rustup default "$HONK_CHANNEL"
-          else
-            echo "honk rust-toolchain.toml has no channel, falling back to 1.99.1"
-            rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-            rustup default 1.99.1
-          fi
-        else
-          echo "honk rust-toolchain.toml not found, falling back to 1.99.1"
-          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
-          rustup default 1.99.1
-        fi
+        HONK_DIR="openwrt/feeds/daeuniverse/honk/src"
 
-        rustup toolchain install nightly-2026-07-20 --profile minimal --component rust-src --component llvm-tools
+        STABLE_CHANNEL=$(grep -E '^\s*channel\s*=' "$HONK_DIR/rust-toolchain.toml" | head -n1 | sed 's/.*=//; s/["]//g; s/^[[:space:]]*//')
+        NIGHTLY_CHANNEL=$(grep -E '^\s*channel\s*=' "$HONK_DIR/crates/honk-ebpf/rust-toolchain.toml" | head -n1 | sed 's/.*=//; s/["]//g; s/^[[:space:]]*//')
+
+        echo "Stable toolchain channel (from rust-toolchain.toml): $STABLE_CHANNEL"
+        echo "Nightly toolchain channel (from crates/honk-ebpf/rust-toolchain.toml): $NIGHTLY_CHANNEL"
+
+        rustup toolchain install "$STABLE_CHANNEL" --profile minimal --component rustfmt --component clippy
+        rustup toolchain install "$NIGHTLY_CHANNEL" --profile minimal --component rust-src --component llvm-tools
+        rustup default "$STABLE_CHANNEL"
+
         rustup target add x86_64-unknown-linux-musl
+
         cargo install bpf-linker --version 0.10.3
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       shell: bash
