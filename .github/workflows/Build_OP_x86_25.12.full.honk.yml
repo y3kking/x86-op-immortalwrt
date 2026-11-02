@@ -82,7 +82,7 @@ jobs:
           HONK_CHANNEL=$(grep -E '^\s*channel\s*=' "$HONK_TOOLCHAIN_FILE" | head -n1 | sed 's/.*=//; s/["]//g; s/^[[:space:]]*//')
           if [ -n "$HONK_CHANNEL" ]; then
             echo "Using Rust channel from honk rust-toolchain.toml: $HONK_CHANNEL"
-            rustup toolchain install "$HONK_CHANNEL" --profile minimal --component rustfmt --component clippy
+            rustup toolchain install "$HONK_CHANNEL" --profile minimal --component rustfmt --component clippy --component rust-src
             rustup default "$HONK_CHANNEL"
           else
             echo "honk rust-toolchain.toml has no channel, falling back to 1.99.1"
